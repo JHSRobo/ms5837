@@ -147,7 +147,10 @@ class MS5837(object):
     
     # Altitude relative to MSL pressure
     def altitude(self):
-        return (1-pow((self.pressure()/1013.25),.190284))*145366.45*.3048        
+	if self.pressure() < 0:
+		return
+	else:
+		return (1-pow((self.pressure()/1013.25),.190284))*145366.45*.3048        
     
     # Cribbed from datasheet
     def _calculate(self):
