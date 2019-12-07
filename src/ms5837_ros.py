@@ -54,8 +54,9 @@ def publisher():
 
 		msg.tempC = sensor.temperature(ms5837_driver.UNITS_Centigrade)
 		msg.tempF = sensor.temperature(ms5837_driver.UNITS_Farenheit)
-		msg.depth = sensor.depth() 
-		msg.altitudeM = sensor.altitude()
+		msg.depth = sensor.depth()
+		if str(sensor.altitude()) != "None":
+			 msg.altitudeM = sensor.altitude()
 
 		# update message headers
 		header.stamp = rospy.Time.now()
