@@ -136,9 +136,9 @@ class MS5837(object):
     def temperature(self, conversion=UNITS_Centigrade):
         degC = self._temperature / 100.0
         if conversion == UNITS_Farenheit:
-            return (9.0/5.0) * degC + 32
+            return (9.0/5.0)*degC + 32
         elif conversion == UNITS_Kelvin:
-            return degC - 273
+            return degC + 273
         return degC
         
     # Depth relative to MSL pressure in given fluid density
@@ -147,11 +147,9 @@ class MS5837(object):
     
     # Altitude relative to MSL pressure
     def altitude(self):
-	if self.pressure() < 0:
-		return
-	else:
-		return (1-pow((self.pressure()/1013.25),.190284))*145366.45*.3048        
-    
+        #return (1-pow((self.pressure()/1013.25),.190284))*145366.45*.3048        
+        return 0  
+ 
     # Cribbed from datasheet
     def _calculate(self):
         OFFi = 0
@@ -233,4 +231,4 @@ class MS5837_30BA(MS5837):
 class MS5837_02BA(MS5837):
     def __init__(self, bus=1):
         MS5837.__init__(self, MODEL_02BA, bus)
-        
+

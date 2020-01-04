@@ -13,13 +13,7 @@ fluidDensity = rospy.get_param('fluidDensity', '997')
 
 
 def publisher():
-	# set up ros stuff
-	pub = rospy.Publisher('rov/ms5837', ms5837_data, queue_size=3)
-	rospy.init_node('ms5837')
-	rate = rospy.Rate(30)  # 30Hz data read
-
-	sensor = ms5837_driver.MS5837_30BA()  # Default I2C bus is 1 (Raspberry Pi 3)
-	# sensor = ms5837.MS5837_02BA()
+	global pub, sensor, rate
 
 	# sensor.init must run immediatly after instatation of ms5837 object
 	attempts = 0
@@ -70,6 +64,15 @@ def publisher():
 
 if __name__ == '__main__':
 	try:
+                global pub, rate, sensor
+
+                # set up ros stuff
+		rospy.init_node('ms5837')
+                pub = rospy.Publisher('rov/ms5837', ms5837_data, queue_size=3)
+                rate = rospy.Rate(60)  # 60Hz data read
+                sensor = ms5837_driver.MS5837_30BA()  # Default I2C bus is 1 (Raspberry Pi 3)
+                # sensor = ms5837.MS5837_02BA()
+
 		publisher()
 	except rospy.ROSInterruptException:
 		pass
