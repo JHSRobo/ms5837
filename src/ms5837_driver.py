@@ -100,7 +100,7 @@ class MS5837(object):
             return False
         
         # Request D1 conversion (temperature)
-        self.bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D1_256 + 2*oversampling)
+        self._bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D1_256 + 2*oversampling)
     
         # Maximum conversion time increases linearly with oversampling
         # max time (seconds) ~= 2.2e-6(x) where x = OSR = (2^8, 2^9, ..., 2^13)
@@ -111,7 +111,7 @@ class MS5837(object):
         self._D1 = d[0] << 16 | d[1] << 8 | d[2]
 
         # Request D2 conversion (pressure)
-        self.bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D2_256 + 2*oversampling)
+        self._bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D2_256 + 2*oversampling)
     
         # As above
         sleep(2.5e-6 * 2**(8+oversampling))
