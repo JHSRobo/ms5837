@@ -42,7 +42,7 @@ if __name__ == '__main__':
                 pub.publish(msg)
 
             except Exception as e:
-                rospy.logdebug("Depth Sensor read failed! %s", e)
+                rospy.logerr("Depth Sensor read failed! %s", e)
 
             rate.sleep()
 
