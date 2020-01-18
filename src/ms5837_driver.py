@@ -1,7 +1,9 @@
+import rospy
+
 try:
     import smbus
 except:
-    print 'Try sudo apt-get install python-smbus'
+    rospy.logerr('Try sudo apt-get install python-smbus')
     
 from time import sleep
 
@@ -53,8 +55,8 @@ class MS5837(object):
         try:
             self._bus = smbus.SMBus(bus)
         except:
-            print("Bus %d is not available.") % bus
-            print("Available busses are listed as /dev/i2c*")
+            rospy.logerr("Bus %d is not available." % bus)
+            rospy.logerr("Available busses are listed as /dev/i2c*")
             self._bus = None
         
         self._fluidDensity = DENSITY_FRESHWATER
@@ -83,25 +85,22 @@ class MS5837(object):
                         
         crc = (self._C[0] & 0xF000) >> 12
         if crc != self._crc4(self._C):
-            print "PROM read error, CRC failed!"
+            rospy.loginfo("PROM read error, CRC failed!")
             return False
         
         return True
         
     def read(self, oversampling=OSR_8192):
         if self._bus is None:
-            print "No bus!"
+            rospy.logerr("No bus!")
             return False
         
         if oversampling < OSR_256 or oversampling > OSR_8192:
-            print "Invalid oversampling option!"
+            rospy.logerr("Invalid oversampling option!")
             return False
         
         # Request D1 conversion (temperature)
-        self._bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D1_256 + 2*oversampling)
-
-        # Request D2 conversion (pressure) -> My little experiment for faster reading ##############################
-        self._bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D2_256 + 2*oversampling)
+        self.bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D1_256 + 2*oversampling)
     
         # Maximum conversion time increases linearly with oversampling
         # max time (seconds) ~= 2.2e-6(x) where x = OSR = (2^8, 2^9, ..., 2^13)
@@ -111,11 +110,11 @@ class MS5837(object):
         d = self._bus.read_i2c_block_data(self._MS5837_ADDR, self._MS5837_ADC_READ, 3)
         self._D1 = d[0] << 16 | d[1] << 8 | d[2]
 
-        # # Request D2 conversion (pressure)
-        # self._bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D2_256 + 2*oversampling)
+        # Request D2 conversion (pressure)
+        self.bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D2_256 + 2*oversampling)
     
         # As above
-        # sleep(2.5e-6 * 2**(8+oversampling))
+        sleep(2.5e-6 * 2**(8+oversampling))
  
         d = self._bus.read_i2c_block_data(self._MS5837_ADDR, self._MS5837_ADC_READ, 3)
         self._D2 = d[0] << 16 | d[1] << 8 | d[2]

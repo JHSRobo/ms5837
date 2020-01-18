@@ -12,10 +12,10 @@ from ms5837.msg import ms5837_data
 if __name__ == '__main__':
     try:
         # set up ros stuff
-        rospy.init_node('ms5837')
+        rospy.init_node('ms5837_node')
         fluidDensity = rospy.get_param('~fluidDensity', '1000')
         pub = rospy.Publisher('rov/ms5837', ms5837_data, queue_size=1)
-        rate = rospy.Rate(60)  # 60Hz data read
+        rate = rospy.Rate(50)  # 50Hz data read
         sensor = ms5837_driver.MS5837_30BA()  # Default I2C bus is 1 (Raspberry Pi 3)
         # sensor = ms5837.MS5837_02BA()
 
