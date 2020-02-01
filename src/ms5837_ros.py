@@ -30,8 +30,8 @@ class KalmanFilter:
             rospy.logerr("Sensor value error: change in measurement too large for one time step")
         else:
             self.KG = self.e_error / (self.e_error + m_error)  # compute the Kalman gain
-            self.est = self.est + self.KG(measurement - self.est)
-            self.e_error = (1 - self.KG)(self.e_error)
+            self.est = self.est + self.KG*(measurement - self.est)
+            self.e_error = (1 - self.KG) * self.e_error
 
         self.last_measurement = measurement
         return self.est, self.e_error
