@@ -75,50 +75,46 @@ if __name__ == '__main__':
         while not rospy.is_shutdown():
             msg = ms5837_data()
 
-            try:
-                sensor.read(oversampling=2)  # maximum read rate of ~90Hz
+            sensor.read(oversampling=2)  # maximum read rate of ~90Hz
 
-                if use_kalman_filter:
-                    depth, variance = filter.update(sensor.depth(), depth_variance)
-                else:
-                    depth = sensor.depth()
-                    variance = depth_variance
+            if use_kalman_filter:
+                depth, variance = filter.update(sensor.depth(), depth_variance)
+            else:
+                depth = sensor.depth()
+                variance = depth_variance
 
-                msg.tempC = sensor.temperature(ms5837_driver.UNITS_Centigrade)
-                msg.tempF = sensor.temperature(ms5837_driver.UNITS_Farenheit)
-                msg.depth = sensor.depth()
-                # msg.altitudeM = sensor.altitude() # causes error in driver
+            msg.tempC = sensor.temperature(ms5837_driver.UNITS_Centigrade)
+            msg.tempF = sensor.temperature(ms5837_driver.UNITS_Farenheit)
+            msg.depth = sensor.depth()
+            # msg.altitudeM = sensor.altitude() # causes error in driver
 
-                # update message headers
+            # update message headers
+            msg.header.stamp = rospy.Time.now()
+            msg.header.frame_id = 'depth_data'
+
+            pub.publish(msg)
+
+            if publish_odom:
+                msg = Odometry()
+                msg.header.frame_id = tf_frame
                 msg.header.stamp = rospy.Time.now()
-                msg.header.frame_id = 'depth_data'
+                msg.pose.pose.position.z = float(depth)
+                time_now = time.time()
+                if last_value is not None:
+                    msg.twist.twist.linear.z = float((depth - last_value) / (time_now - last_time))
+                last_value = depth
+                last_time = time_now
+                msg.pose.covariance[14] = variance
+                msg.twist.covariance[14] = variance
+                odom_pub.publish(msg)
 
-                pub.publish(msg)
-
-                if publish_odom:
-                    msg = Odometry()
-                    msg.header.frame_id = tf_frame
-                    msg.header.stamp = rospy.Time.now()
-                    msg.pose.pose.position.z = float(depth)
-                    time_now = time.time()
-                    if last_value is not None:
-                        msg.twist.twist.linear.z = float((depth - last_value) / (time_now - last_time))
-                    last_value = depth
-                    last_time = time_now
-                    msg.pose.covariance[14] = variance
-                    msg.twist.covariance[14] = variance
-                    odom_pub.publish(msg)
-
-                if publish_pose:
-                    msg = PoseWithCovarianceStamped()
-                    msg.header.frame_id = tf_frame
-                    msg.header.stamp = rospy.Time.now()
-                    msg.pose.pose.position.z = float(depth)
-                    msg.pose.covariance[14] = variance
-                    pose_pub.publish(msg)
-
-            except Exception as e:
-                rospy.logerr("Depth Sensor read failed! %s", e)
+            if publish_pose:
+                msg = PoseWithCovarianceStamped()
+                msg.header.frame_id = tf_frame
+                msg.header.stamp = rospy.Time.now()
+                msg.pose.pose.position.z = float(depth)
+                msg.pose.covariance[14] = variance
+                pose_pub.publish(msg)
 
             rate.sleep()
 
