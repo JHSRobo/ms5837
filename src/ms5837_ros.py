@@ -36,12 +36,9 @@ class KalmanFilter:
         self.last_measurement = measurement
         return self.est, self.e_error
 
-
-last_value = None  # the last sensor value for computing the velocity
-last_time = time.time()  # time of last read for computing velocity
-
 if __name__ == '__main__':
-    global last_time, last_value
+    last_value = None  # the last sensor value for computing the velocity
+    last_time = time.time()  # time of last read for computing velocity
     try:
         # set up ros stuff
         rospy.init_node('ms5837_node')
