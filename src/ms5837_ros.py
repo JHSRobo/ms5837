@@ -6,6 +6,7 @@ import time
 from geometry_msgs.msg import PoseWithCovarianceStamped
 from ms5837.msg import ms5837_data
 from nav_msgs.msg import Odometry
+import numpy as np
 
 
 # Choose seawater or freshwater depth calibration using ros param
@@ -14,31 +15,47 @@ from nav_msgs.msg import Odometry
 
 class KalmanFilter:
 
-    def __init__(self, max_diff=100):
+    def __init__(self, max_diff=100, process_noise_matrix=np.array([[0.001, 0, 0], [0, 0.0005, 0], [0, 0, 0.0001]])):
         # initialize the filter with random values
-        self.KG = 1  # Kalman gain
-        self.est = 0  # last estimate
-        self.e_error = 1  # Error of the filter estimate
-        self.last_measurement = None
+        self.KG = np.ones((3, 3))  # Kalman gain
+        self.est = np.zeros((3, 3))  # last estimate (x,v,a)
+        self.est_error = np.ones((3, 3))  # Error of the filter estimate
+        self.process_noise_matrix = process_noise_matrix
+
+        self.last_time = time.time()  # for calculating dt
+
+        # for sanity check on sensor value
+        self.last_x_m = None
         self.max_diff = max_diff  # the maximum error between two sensor readings for value to be thrown out
 
-    def update(self, measurement, m_error):
-        if self.last_measurement is None:
-            self.last_measurement = measurement
-
-        if abs(measurement - self.last_measurement) > self.max_diff:
+    def update(self, x_m, v_m, a_m, x_e, v_e, a_e):
+        # pass in measure position, velocity, and acceleration along with error for each
+        # check to make sure sensor value has not had catastrophic problem
+        if self.x_m is None:
+            self.last_x_m = x_m
+        if abs(x_m - self.last_x_m) > self.max_diff:
             rospy.logerr("Sensor value error: change in measurement too large for one time step")
         else:
-            self.KG = self.e_error / (self.e_error + m_error)  # compute the Kalman gain
-            self.est = self.est + self.KG*(measurement - self.est)
-            self.e_error = (1 - self.KG) * self.e_error
 
-        self.last_measurement = measurement
+            # if value is all good then continue to run time step step
+            current_time = time.time()
+            dt = current_time - self.last_time
+            self.last_time = current_time
+
+            # create our new estimate based on the model
+            self.est = np.matmul(np.array([[1, dt, 1 / 2.0 * dt ** 2], [0, 1, dt], [0, 0, 1]]), self.est)
+            self.est_error = self.est_error + self.process_noise_matrix  # prevent error from going to zero
+
+            # update estimate with new sensor values
+            self.KG = self.est_error / (self.est_error + np.array([[x_e, 0, 0], [0, v_e, 0], [0, 0, a_e]]))
+            self.est = self.est + np.matmul(self.KG, np.array([[x_m, 0, 0], [0, v_m, 0], [0, 0, a_m]]) - self.est)
+            self.est_error = np.matmul((np.identity(3) - self.KG), self.est_error)
+
+        self.last_x_m = x_m
         return self.est, self.e_error
 
+
 if __name__ == '__main__':
-    last_value = None  # the last sensor value for computing the velocity
-    last_time = time.time()  # time of last read for computing velocity
     try:
         # set up ros stuff
         rospy.init_node('ms5837_node')
@@ -69,16 +86,35 @@ if __name__ == '__main__':
         if use_kalman_filter:
             filter = KalmanFilter(100)
 
+        last_depth_m = 0  # the last sensor value for computing the velocity
+        last_velocity_m = 0  # last velocity for computing acceleration
+        last_time = time.time()  # time of last read for computing velocity
+
         while not rospy.is_shutdown():
             msg = ms5837_data()
 
             sensor.read(oversampling=2)  # maximum read rate of ~90Hz
 
+            current_time = time.time()
+            dt = current_time - last_time
+            last_time = current_time
+
+            # measured values for depth, velocity, acceleration
+            velocity_m = (sensor.depth() - last_depth_m) / dt
+            last_depth_m = sensor.depth()
+            acceleration_m = (velocity_m - last_velocity_m) / dt
+            last_velocity_m = velocity_m
+
             if use_kalman_filter:
-                depth, variance = filter.update(sensor.depth(), depth_variance)
+                state, variance = filter.update(sensor.depth(), velocity_m, acceleration_m,
+                                                depth_variance, depth_variance, depth_variance)
+                depth = state[0, 0]
+                velocity = state[1, 1]
+                variance = [variance[0, 0], variance[1, 1]]  # position and velocity variance
             else:
                 depth = sensor.depth()
-                variance = depth_variance
+                velocity = velocity_m
+                variance = [depth_variance, depth_variance]
 
             msg.tempC = sensor.temperature(ms5837_driver.UNITS_Centigrade)
             msg.tempF = sensor.temperature(ms5837_driver.UNITS_Farenheit)
@@ -97,12 +133,10 @@ if __name__ == '__main__':
                 msg.header.stamp = rospy.Time.now()
                 msg.pose.pose.position.z = float(depth)
                 time_now = time.time()
-                if last_value is not None:
-                    msg.twist.twist.linear.z = float((depth - last_value) / (time_now - last_time))
-                last_value = depth
+                msg.twist.twist.linear.z = float(velocity)
                 last_time = time_now
-                msg.pose.covariance[14] = variance
-                msg.twist.covariance[14] = variance
+                msg.pose.covariance[14] = variance[0]
+                msg.twist.covariance[14] = variance[1]
                 odom_pub.publish(msg)
 
             if publish_pose:
@@ -110,7 +144,7 @@ if __name__ == '__main__':
                 msg.header.frame_id = tf_frame
                 msg.header.stamp = rospy.Time.now()
                 msg.pose.pose.position.z = float(depth)
-                msg.pose.covariance[14] = variance
+                msg.pose.covariance[14] = variance[0]
                 pose_pub.publish(msg)
 
             rate.sleep()
