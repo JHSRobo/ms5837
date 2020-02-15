@@ -31,7 +31,7 @@ class KalmanFilter:
     def update(self, x_m, v_m, a_m, x_e, v_e, a_e):
         # pass in measure position, velocity, and acceleration along with error for each
         # check to make sure sensor value has not had catastrophic problem
-        if self.x_m is None:
+        if self.last_x_m is None:
             self.last_x_m = x_m
         if abs(x_m - self.last_x_m) > self.max_diff:
             rospy.logerr("Sensor value error: change in measurement too large for one time step")
@@ -44,7 +44,9 @@ class KalmanFilter:
 
             # create our new estimate based on the model
             self.est = np.matmul(np.array([[1, dt, 1 / 2.0 * dt ** 2], [0, 1, dt], [0, 0, 1]]), self.est)
+	    rospy.logerr(self.est)
             self.est_error = self.est_error + self.process_noise_matrix  # prevent error from going to zero
+	    rospy.logerr(self.est_error)
 
             # update estimate with new sensor values
             self.KG = self.est_error / (self.est_error + np.array([[x_e, 0, 0], [0, v_e, 0], [0, 0, a_e]]))
@@ -52,7 +54,7 @@ class KalmanFilter:
             self.est_error = np.matmul((np.identity(3) - self.KG), self.est_error)
 
         self.last_x_m = x_m
-        return self.est, self.e_error
+        return self.est, self.est_error
 
 
 if __name__ == '__main__':
