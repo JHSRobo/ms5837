@@ -15,7 +15,7 @@ import numpy as np
 
 class KalmanFilter:
 
-    def __init__(self, max_diff=100, process_noise_matrix=np.array([[0.001, 0, 0], [0, 0.0005, 0], [0, 0, 0.0001]])):
+    def __init__(self, max_diff=100, process_noise_matrix=np.array([[0.001, 0.00000001, 0.00000001], [0.00000001, 0.0005, 0.00000001], [0.00000001, 0.00000001, 0.0001]])):
         # initialize the filter with random values
         self.KG = np.ones((3, 3))  # Kalman gain
         self.est = np.zeros((3, 3))  # last estimate (x,v,a)
@@ -43,13 +43,13 @@ class KalmanFilter:
             self.last_time = current_time
 
             # create our new estimate based on the model
-            self.est = np.matmul(np.array([[1, dt, 1 / 2.0 * dt ** 2], [0, 1, dt], [0, 0, 1]]), self.est)
-	    rospy.logerr(self.est)
-            self.est_error = self.est_error + self.process_noise_matrix  # prevent error from going to zero
-	    rospy.logerr(self.est_error)
+            self.est = np.matmul(np.array([[1, dt, 1 / 2.0 * dt ** 2], [0, 1, dt], [0, 0, 1]]), self.est) * [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+            rospy.logerr(self.est)
+            self.est_error = self.est_error * [[1, 0, 0], [0, 1, 0], [0, 0, 1]] + self.process_noise_matrix  # prevent error from going to zero
+            rospy.logerr(self.est_error)
 
             # update estimate with new sensor values
-            self.KG = self.est_error / (self.est_error + np.array([[x_e, 0, 0], [0, v_e, 0], [0, 0, a_e]]))
+            self.KG = self.est_error / (self.est_error + np.array([[x_e, 0, 0], [0, v_e, 0], [0, 0, a_e]])) * [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
             self.est = self.est + np.matmul(self.KG, np.array([[x_m, 0, 0], [0, v_m, 0], [0, 0, a_m]]) - self.est)
             self.est_error = np.matmul((np.identity(3) - self.KG), self.est_error)
 
