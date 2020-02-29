@@ -1,7 +1,9 @@
+import rospy
+
 try:
     import smbus
 except:
-    print 'Try sudo apt-get install python-smbus'
+    rospy.logerr('Try sudo apt-get install python-smbus')
     
 from time import sleep
 
@@ -53,8 +55,8 @@ class MS5837(object):
         try:
             self._bus = smbus.SMBus(bus)
         except:
-            print("Bus %d is not available.") % bus
-            print("Available busses are listed as /dev/i2c*")
+            rospy.logerr("Bus %d is not available." % bus)
+            rospy.logerr("Available busses are listed as /dev/i2c*")
             self._bus = None
         
         self._fluidDensity = DENSITY_FRESHWATER
@@ -83,18 +85,18 @@ class MS5837(object):
                         
         crc = (self._C[0] & 0xF000) >> 12
         if crc != self._crc4(self._C):
-            print "PROM read error, CRC failed!"
+            rospy.loginfo("PROM read error, CRC failed!")
             return False
         
         return True
         
     def read(self, oversampling=OSR_8192):
         if self._bus is None:
-            print "No bus!"
+            rospy.logerr("No bus!")
             return False
         
         if oversampling < OSR_256 or oversampling > OSR_8192:
-            print "Invalid oversampling option!"
+            rospy.logerr("Invalid oversampling option!")
             return False
         
         # Request D1 conversion (temperature)
@@ -107,7 +109,7 @@ class MS5837(object):
         
         d = self._bus.read_i2c_block_data(self._MS5837_ADDR, self._MS5837_ADC_READ, 3)
         self._D1 = d[0] << 16 | d[1] << 8 | d[2]
-        
+
         # Request D2 conversion (pressure)
         self._bus.write_byte(self._MS5837_ADDR, self._MS5837_CONVERT_D2_256 + 2*oversampling)
     
@@ -136,9 +138,9 @@ class MS5837(object):
     def temperature(self, conversion=UNITS_Centigrade):
         degC = self._temperature / 100.0
         if conversion == UNITS_Farenheit:
-            return (9.0/5.0) * degC + 32
+            return (9.0/5.0)*degC + 32
         elif conversion == UNITS_Kelvin:
-            return degC - 273
+            return degC + 273
         return degC
         
     # Depth relative to MSL pressure in given fluid density
@@ -147,11 +149,9 @@ class MS5837(object):
     
     # Altitude relative to MSL pressure
     def altitude(self):
-	if self.pressure() < 0:
-		return
-	else:
-		return (1-pow((self.pressure()/1013.25),.190284))*145366.45*.3048        
-    
+        #return (1-pow((self.pressure()/1013.25),.190284))*145366.45*.3048        
+        return 0  
+ 
     # Cribbed from datasheet
     def _calculate(self):
         OFFi = 0
@@ -233,4 +233,4 @@ class MS5837_30BA(MS5837):
 class MS5837_02BA(MS5837):
     def __init__(self, bus=1):
         MS5837.__init__(self, MODEL_02BA, bus)
-        
+
