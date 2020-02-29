@@ -44,9 +44,9 @@ class KalmanFilter:
 
             # create our new estimate based on the model
             self.est = np.matmul(np.array([[1, dt, 1 / 2.0 * dt ** 2], [0, 1, dt], [0, 0, 1]]), self.est) * [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
-            rospy.logerr(self.est)
+            rospy.logdebug(self.est)
             self.est_error = self.est_error * [[1, 0, 0], [0, 1, 0], [0, 0, 1]] + self.process_noise_matrix  # prevent error from going to zero
-            rospy.logerr(self.est_error)
+            rospy.logdebug(self.est_error)
 
             # update estimate with new sensor values
             self.KG = self.est_error / (self.est_error + np.array([[x_e, 0, 0], [0, v_e, 0], [0, 0, a_e]])) * [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
